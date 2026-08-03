@@ -1,5 +1,15 @@
+import subprocess
 import sys
 import os
+
+# Install dvbank's runtime deps into whichever Python is running pytest.
+# G2 runs pytest via shell; the interpreter may differ from G1's pip environment.
+_req = os.path.join(os.path.dirname(__file__), "..", "requirements.txt")
+if os.path.exists(_req):
+    subprocess.run(
+        [sys.executable, "-m", "pip", "install", "-r", _req, "-q"],
+        check=False,
+    )
 
 # Make backend/ importable so bare imports (models, auth, routes) resolve
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
