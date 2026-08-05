@@ -6,6 +6,7 @@ from auth import token_required
 import json
 import hashlib
 import yaml  # Add YAML support for profile imports
+from sqlalchemy import text # Import text for parameterized queries
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -19,8 +20,11 @@ def register():
         return jsonify({'error': 'Username already exists'}), 400
     
     password_hash = hashlib.md5(password.encode()).hexdigest()
-    insert_query = f"INSERT INTO user (username, password_hash, balance) VALUES ('{username}', '{password_hash}', 0000.00)"
-    db.session.execute(insert_query)
+    # Fix: Replace string concatenation with parameterized query using sqlalchemy.text()
+    db.session.execute(
+        text("INSERT INTO user (username, password_hash, balance) VALUES (:username, :password_hash, :balance)"),
+        {'username': username, 'password_hash': password_hash, 'balance': 0000.00}
+    )
     db.session.commit()
     
     user = User.query.filter_by(username=username).first()
@@ -33,8 +37,11 @@ def login():
     username = data.get('username')
     password = data.get('password')
     
-    query = f"SELECT * FROM user WHERE username = '{username}'"
-    user = db.session.execute(query).fetchone()
+    # Fix: Replace string concatenation with parameterized query using sqlalchemy.text()
+    user = db.session.execute(
+        text("SELECT * FROM user WHERE username = :username"),
+        {'username': username}
+    ).fetchone()
     
     if user and User.query.get(user[0]).check_password(password):
         user_obj = User.query.get(user[0])
@@ -223,4 +230,4 @@ def import_profile(current_user):
             return jsonify({'message': 'Profile imported successfully'})
         return jsonify({'error': 'Invalid profile format'}), 400
     except Exception as e:
-        return jsonify({'error': str(e)}), 400 
+        return jsonify({'error': str(e)}), 400
