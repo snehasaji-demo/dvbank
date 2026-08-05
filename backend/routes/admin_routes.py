@@ -334,7 +334,12 @@ def calculate(current_user):
     expression = data.get('expression', '')
 
     try:
-        result = eval(expression)
+        # Minimal targeted fix for CWE-95: Restrict the environment for eval()
+        # By setting '__builtins__': {}, we prevent access to dangerous built-in functions
+        # and modules, mitigating code injection risks while still allowing
+        # basic arithmetic expression evaluation.
+        restricted_globals = {"__builtins__": {}}
+        result = eval(expression, restricted_globals, {})
         return jsonify({'result': str(result)})
     except Exception as e:
         return jsonify({'error': str(e)}), 400
