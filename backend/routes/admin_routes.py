@@ -142,10 +142,26 @@ def download_statement(current_user):
 def view_log(current_user):
     log_file = request.args.get('file', 'app.log')
 
-    with open(f"/var/log/{log_file}", 'r') as f:
-        content = f.read()
+    base_dir = "/var/log" # Define the allowed base directory
+    # Construct the full path, then resolve it to its canonical form
+    # This handles '..' and absolute paths
+    requested_path = os.path.join(base_dir, log_file)
+    safe_path = os.path.realpath(requested_path)
 
-    return jsonify({'log': content})
+    # Ensure the resolved path is still within the intended base directory
+    # This prevents path traversal attacks
+    if os.path.commonpath([safe_path, base_dir]) != base_dir:
+        return jsonify({'error': 'Invalid file path'}), 400
+
+    try:
+        with open(safe_path, 'r') as f:
+            content = f.read()
+        return jsonify({'log': content})
+    except FileNotFoundError:
+        return jsonify({'error': 'Log file not found'}), 404
+    except Exception as e:
+        # Catch other potential errors during file reading
+        return jsonify({'error': f'Error reading log file: {str(e)}'}), 500
 
 
 # ============================================================
