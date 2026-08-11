@@ -28,3 +28,20 @@ def test_search_transactions(client, alice):
     )
     assert resp.status_code == 200
     assert isinstance(resp.get_json(), list)
+
+
+def test_search_transactions_sql_injection(client, alice):
+    resp = client.get(
+        "/api/transactions/search?description=pytest' OR '1'='1",
+        headers=_h(alice["token"]),
+    )
+    assert resp.status_code == 200
+    assert isinstance(resp.get_json(), list)
+
+
+def test_get_transactions_sql_injection(client, alice):
+    resp = client.get(
+        "/api/transactions?user_id=1 OR 1=1",
+        headers=_h(alice["token"]),
+    )
+    assert resp.status_code in [200, 400, 404]
