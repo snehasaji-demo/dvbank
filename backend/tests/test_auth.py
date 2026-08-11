@@ -28,3 +28,19 @@ def test_me_authenticated(client, alice):
 def test_me_unauthenticated(client):
     resp = client.get("/api/me")
     assert resp.status_code == 401
+
+
+def test_register_sql_injection(client):
+    # Test SQL injection in register username
+    resp = client.post("/api/register", json={"username": "attacker' OR '1'='1", "password": "password"})
+    assert resp.status_code == 201
+    
+    # Test that the user was registered with the literal username, not executed as SQL
+    resp_login = client.post("/api/login", json={"username": "attacker' OR '1'='1", "password": "password"})
+    assert resp_login.status_code == 200
+
+
+def test_login_sql_injection(client):
+    # Test SQL injection in login username
+    resp = client.post("/api/login", json={"username": "alice_t' OR '1'='1", "password": "wrong"})
+    assert resp.status_code == 401

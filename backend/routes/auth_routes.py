@@ -11,16 +11,25 @@ auth_bp = Blueprint('auth', __name__)
 
 @auth_bp.route('/api/register', methods=['POST'])
 def register():
-    data = request.get_json()
+    data = request.get_json() or {}
     username = data.get('username')
     password = data.get('password')
     
+    if not username or not password:
+        return jsonify({'error': 'Username and password are required'}), 400
+    if not isinstance(username, str) or not isinstance(password, str):
+        return jsonify({'error': 'Invalid input format'}), 400
+    username = username.strip()
+    if len(username) < 3 or len(username) > 80:
+        return jsonify({'error': 'Username must be between 3 and 80 characters'}), 400
+        
     if User.query.filter_by(username=username).first():
         return jsonify({'error': 'Username already exists'}), 400
     
     password_hash = hashlib.md5(password.encode()).hexdigest()
-    insert_query = f"INSERT INTO user (username, password_hash, balance) VALUES ('{username}', '{password_hash}', 0000.00)"
-    db.session.execute(insert_query)
+    from sqlalchemy import text
+    insert_query = "INSERT INTO user (username, password_hash, balance) VALUES (:username, :password_hash, 0000.00)"
+    db.session.execute(text(insert_query), {'username': username, 'password_hash': password_hash})
     db.session.commit()
     
     user = User.query.filter_by(username=username).first()
@@ -29,12 +38,18 @@ def register():
 
 @auth_bp.route('/api/login', methods=['POST'])
 def login():
-    data = request.get_json()
+    data = request.get_json() or {}
     username = data.get('username')
     password = data.get('password')
     
-    query = f"SELECT * FROM user WHERE username = '{username}'"
-    user = db.session.execute(query).fetchone()
+    if not username or not password:
+        return jsonify({'error': 'Username and password are required'}), 400
+    if not isinstance(username, str) or not isinstance(password, str):
+        return jsonify({'error': 'Invalid input format'}), 400
+    
+    from sqlalchemy import text
+    query = "SELECT * FROM user WHERE username = :username"
+    user = db.session.execute(text(query), {'username': username}).fetchone()
     
     if user and User.query.get(user[0]).check_password(password):
         user_obj = User.query.get(user[0])

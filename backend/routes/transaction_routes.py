@@ -9,10 +9,16 @@ transaction_bp = Blueprint('transaction', __name__)
 @transaction_bp.route('/api/transfer', methods=['POST'])
 @token_required
 def transfer(current_user):
-    data = request.get_json()
+    data = request.get_json() or {}
     to_user_id = data.get('to_user_id')
-    amount = Decimal(str(data.get('amount', 0)))
+    try:
+        amount = Decimal(str(data.get('amount', 0)))
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Invalid amount'}), 400
     description = data.get('description', '')
+    
+    if not to_user_id or amount <= 0:
+        return jsonify({'error': 'Invalid input'}), 400
     
     receiver = User.query.get(to_user_id)
     
@@ -45,9 +51,14 @@ def transfer(current_user):
 @token_required
 def get_transactions(current_user):
     user_id = request.args.get('user_id', current_user.id)
+    try:
+        user_id = int(user_id)
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Invalid user_id'}), 400
     
-    query = f'SELECT * FROM "Transaction" WHERE sender_id = {user_id} OR receiver_id = {user_id} ORDER BY created_at DESC'
-    result = db.session.execute(query)
+    from sqlalchemy import text
+    query = 'SELECT * FROM "Transaction" WHERE sender_id = :user_id OR receiver_id = :user_id ORDER BY created_at DESC'
+    result = db.session.execute(text(query), {'user_id': user_id})
     transactions = result.fetchall()
     
     return jsonify([{
@@ -87,12 +98,16 @@ def get_transaction(current_user, transaction_id):
 @token_required
 def search_transactions(current_user):
     search_term = request.args.get('description', '')
+    if not isinstance(search_term, str):
+        return jsonify({'error': 'Invalid search term'}), 400
     
-    # VULNERABLE CODE: Direct string concatenation in SQL query
-    # This is deliberately vulnerable to SQL injection for educational purposes
-    query = f"SELECT * FROM \"transaction\" WHERE (sender_id = {current_user.id} OR receiver_id = {current_user.id}) AND description LIKE '%{search_term}%'"
+    from sqlalchemy import text
+    query = 'SELECT * FROM "transaction" WHERE (sender_id = :user_id OR receiver_id = :user_id) AND description LIKE :search_term'
     
-    result = db.session.execute(query)
+    result = db.session.execute(text(query), {
+        'user_id': current_user.id,
+        'search_term': f'%{search_term}%'
+    })
     transactions = result.fetchall()
     
     transaction_list = []
@@ -124,8 +139,14 @@ def search_transactions(current_user):
 def quickpay(current_user):
     body = request.get_json(silent=True) or {}
     to_user_id = request.form.get('to_user_id', body.get('to_user_id'))
-    amount = Decimal(str(request.form.get('amount', body.get('amount', 0))))
+    try:
+        amount = Decimal(str(request.form.get('amount', body.get('amount', 0))))
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Invalid amount'}), 400
     description = request.form.get('description', body.get('description', 'QuickPay'))
+
+    if not to_user_id or amount <= 0:
+        return jsonify({'error': 'Invalid input'}), 400
 
     receiver = User.query.get(to_user_id)
     if not receiver:
@@ -199,10 +220,16 @@ def transaction_receipt(transaction_id):
 @transaction_bp.route('/api/split-bill', methods=['POST'])
 @token_required
 def split_bill(current_user):
-    data = request.get_json()
+    data = request.get_json() or {}
     from_user_id = data.get('from_user_id')
     to_user_id = data.get('to_user_id', current_user.id)
-    amount = Decimal(str(data.get('amount', 0)))
+    try:
+        amount = Decimal(str(data.get('amount', 0)))
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Invalid amount'}), 400
+
+    if not from_user_id or not to_user_id or amount <= 0:
+        return jsonify({'error': 'Invalid input'}), 400
 
     payer = User.query.get(from_user_id)
     payee = User.query.get(to_user_id)

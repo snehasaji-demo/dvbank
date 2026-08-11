@@ -1,0 +1,25 @@
+
+============================================================
+Attempt 1 at 2026-08-11T13:42:44.485643
+Status: FAILED
+Errors:
+  CHECK 3 FAILED — Missing __init__.py files:
+  backend/ — missing __init__.py
+  docs/exploits/ — missing __init__.py
+  eval/ — missing __init__.py
+  eval/baselines/ — missing __init__.py
+  eval/decoys/ — missing __init__.py
+  eval/graders/ — missing __init__.py
+  eval/graders/_selftest/ — missing __init__.py
+  eval/harness/ — missing __init__.py
+
+FIX: For each listed directory, call write_project_file('<dir>/__init__.py', '').
+
+============================================================
+Attempt 5 at 2026-08-11T13:45:29.703009
+Status: FAILED
+Errors:
+  CHECK 2 FAILED — Unresolved imports:
+  server/main.py:1 — import 'fastapi' not in requirements
+
+FIX: Add each missing package to requirements.txt.

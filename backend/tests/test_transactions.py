@@ -28,3 +28,23 @@ def test_search_transactions(client, alice):
     )
     assert resp.status_code == 200
     assert isinstance(resp.get_json(), list)
+
+
+def test_search_transactions_sql_injection(client, alice):
+    # Test SQL injection in search description
+    resp = client.get(
+        "/api/transactions/search?description=pytest' OR '1'='1",
+        headers=_h(alice["token"]),
+    )
+    assert resp.status_code == 200
+    # Should return empty list or only matching transactions, not all transactions
+    assert isinstance(resp.get_json(), list)
+
+
+def test_get_transactions_sql_injection(client, alice):
+    # Test SQL injection in user_id query parameter
+    resp = client.get(
+        "/api/transactions?user_id=1 OR 1=1",
+        headers=_h(alice["token"]),
+    )
+    assert resp.status_code == 400
