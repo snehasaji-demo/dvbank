@@ -3,6 +3,7 @@ from models import db, User, Transaction
 from datetime import datetime
 from decimal import Decimal
 from auth import token_required, cookie_auth
+from sqlalchemy import text
 
 transaction_bp = Blueprint('transaction', __name__)
 
@@ -45,9 +46,13 @@ def transfer(current_user):
 @token_required
 def get_transactions(current_user):
     user_id = request.args.get('user_id', current_user.id)
+    try:
+        user_id = int(user_id)
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Invalid user_id'}), 400
     
-    query = f'SELECT * FROM "Transaction" WHERE sender_id = {user_id} OR receiver_id = {user_id} ORDER BY created_at DESC'
-    result = db.session.execute(query)
+    query = text('SELECT * FROM "Transaction" WHERE sender_id = :user_id OR receiver_id = :user_id ORDER BY created_at DESC')
+    result = db.session.execute(query, {"user_id": user_id})
     transactions = result.fetchall()
     
     return jsonify([{
@@ -88,11 +93,8 @@ def get_transaction(current_user, transaction_id):
 def search_transactions(current_user):
     search_term = request.args.get('description', '')
     
-    # VULNERABLE CODE: Direct string concatenation in SQL query
-    # This is deliberately vulnerable to SQL injection for educational purposes
-    query = f"SELECT * FROM \"transaction\" WHERE (sender_id = {current_user.id} OR receiver_id = {current_user.id}) AND description LIKE '%{search_term}%'"
-    
-    result = db.session.execute(query)
+    query = text('SELECT * FROM "transaction" WHERE (sender_id = :user_id OR receiver_id = :user_id) AND description LIKE :search_term')
+    result = db.session.execute(query, {"user_id": current_user.id, "search_term": f"%{search_term}%"})
     transactions = result.fetchall()
     
     transaction_list = []

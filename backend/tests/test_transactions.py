@@ -28,3 +28,22 @@ def test_search_transactions(client, alice):
     )
     assert resp.status_code == 200
     assert isinstance(resp.get_json(), list)
+
+
+def test_get_transactions_sql_injection(client, alice):
+    # Test that passing a SQL injection payload to user_id returns 400 Bad Request
+    resp = client.get(
+        "/api/transactions?user_id=1 OR 1=1",
+        headers=_h(alice["token"]),
+    )
+    assert resp.status_code == 400
+
+
+def test_search_transactions_sql_injection(client, alice):
+    # Test that passing a SQL injection payload to description is handled safely
+    resp = client.get(
+        "/api/transactions/search?description=test' OR '1'='1",
+        headers=_h(alice["token"]),
+    )
+    assert resp.status_code == 200
+    assert isinstance(resp.get_json(), list)
