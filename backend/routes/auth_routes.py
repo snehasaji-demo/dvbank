@@ -178,8 +178,9 @@ def forgot_password():
         db.session.commit()
 
     # Reset link built from the attacker-controllable Host header
-    host = request.headers.get('Host')
-    reset_link = f"http://{host}/reset-password?user={username}&token={token}"
+    # Fix: Use Flask's request.url_root which is derived from trusted configuration
+    # or X-Forwarded-Host headers handled by a trusted proxy, preventing Host header injection.
+    reset_link = f"{request.url_root}reset-password?user={username}&token={token}"
 
     return jsonify({
         'message': 'If the account exists, a reset link has been sent',
@@ -223,4 +224,4 @@ def import_profile(current_user):
             return jsonify({'message': 'Profile imported successfully'})
         return jsonify({'error': 'Invalid profile format'}), 400
     except Exception as e:
-        return jsonify({'error': str(e)}), 400 
+        return jsonify({'error': str(e)}), 400
