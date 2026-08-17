@@ -177,9 +177,8 @@ def forgot_password():
         user.reset_token = token
         db.session.commit()
 
-    # Reset link built from the attacker-controllable Host header
-    host = request.headers.get('Host')
-    reset_link = f"http://{host}/reset-password?user={username}&token={token}"
+    # Use a fixed domain to prevent Host header injection (CWE-918)
+    reset_link = f"http://your-application-domain.com/reset-password?user={username}&token={token}"
 
     return jsonify({
         'message': 'If the account exists, a reset link has been sent',
@@ -223,4 +222,4 @@ def import_profile(current_user):
             return jsonify({'message': 'Profile imported successfully'})
         return jsonify({'error': 'Invalid profile format'}), 400
     except Exception as e:
-        return jsonify({'error': str(e)}), 400 
+        return jsonify({'error': str(e)}), 400
