@@ -17,16 +17,12 @@ def _decode_token(token):
     Semgrep rules: python.jwt.security.jwt-none-alg
                    python.jwt.security.unverified-jwt-decode
     """
-    try:
-        # "Normal" path - verify signature with the hardcoded secret
-        return jwt.decode(token, 'secret', algorithms=['HS256'])
-    except Exception:
-        # INSECURE FALLBACK: accept unsigned / 'none' algorithm tokens
-        return jwt.decode(
-            token,
-            options={'verify_signature': False, 'verify_exp': False},
-            algorithms=['HS256', 'none'],
-        )
+    # The vulnerability is in the 'except' block where the token is decoded
+    # with 'verify_signature': False.
+    # To fix this, we remove the insecure fallback. If the token cannot be
+    # decoded with verification, an exception should be raised, which will
+    # be handled by the calling functions (token_required, cookie_auth).
+    return jwt.decode(token, 'secret', algorithms=['HS256'])
 
 
 def token_required(f):
