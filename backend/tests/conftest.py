@@ -1,6 +1,8 @@
 import subprocess
 import sys
 import os
+import uuid
+
 
 # Install dvbank's runtime deps into whichever Python is running pytest.
 # G2 runs pytest via shell; the interpreter may differ from G1's pip environment.
@@ -44,18 +46,19 @@ def client(app):
 @pytest.fixture(scope="session")
 def alice(client, app):
     from models import db, User
-
-    client.post("/api/register", json={"username": "alice_t", "password": "testpass"})
+    test_password = uuid.uuid4().hex
+    client.post("/api/register", json={"username": "alice_t", "password": test_password})
     user = User.query.filter_by(username="alice_t").first()
     if user:
         user.balance = 500
         db.session.commit()
-    resp = client.post("/api/login", json={"username": "alice_t", "password": "testpass"})
+    resp = client.post("/api/login", json={"username": "alice_t", "password": test_password})
     return resp.get_json()
 
 
 @pytest.fixture(scope="session")
 def bob(client, app, alice):
-    client.post("/api/register", json={"username": "bob_t", "password": "testpass"})
-    resp = client.post("/api/login", json={"username": "bob_t", "password": "testpass"})
+    test_password = uuid.uuid4().hex
+    client.post("/api/register", json={"username": "bob_t", "password": test_password})
+    resp = client.post("/api/login", json={"username": "bob_t", "password": test_password})
     return resp.get_json()
