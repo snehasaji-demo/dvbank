@@ -178,8 +178,8 @@ def forgot_password():
         db.session.commit()
 
     # Reset link built from the attacker-controllable Host header
-    host = request.headers.get('Host')
-    reset_link = f"http://{host}/reset-password?user={username}&token={token}"
+    # host = request.headers.get('Host') # Commented out as it's no longer needed
+    reset_link = f"http://dvbank.com/reset-password?user={username}&token={token}"
 
     return jsonify({
         'message': 'If the account exists, a reset link has been sent',
