@@ -4,7 +4,7 @@ from datetime import datetime
 from auth import token_required
 import subprocess
 import os
-import pickle
+import json
 import base64
 import requests
 import logging
@@ -183,7 +183,7 @@ def import_session(current_user):
     session_data = data.get('session_data')
 
     decoded = base64.b64decode(session_data)
-    session = pickle.loads(decoded)
+    session = json.loads(decoded.decode('utf-8'))
 
     return jsonify({'session': str(session)})
 
@@ -197,7 +197,7 @@ def export_session(current_user):
         'role': current_user.role,
         'timestamp': datetime.utcnow().isoformat()
     }
-    serialized = base64.b64encode(pickle.dumps(session_info)).decode('utf-8')
+    serialized = base64.b64encode(json.dumps(session_info).encode('utf-8')).decode('utf-8')
     return jsonify({'session_data': serialized})
 
 
@@ -423,7 +423,7 @@ def sensitive_action(current_user):
     data = request.get_json()
     action = data.get('action', '')
 
-    return jsonify({'message': f'Action {action} performed successfully'})
+    return jsonify({'message': f'Action {action} performed successfully'}) 
 
 
 # ============================================================
