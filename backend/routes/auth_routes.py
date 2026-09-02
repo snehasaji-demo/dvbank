@@ -6,6 +6,20 @@ from auth import token_required
 import json
 import hashlib
 import yaml  # Add YAML support for profile imports
+import re # Added for password validation
+
+def is_password_strong(password):
+    if len(password) < 8:
+        return False
+    if not re.search(r"[A-Z]", password):
+        return False
+    if not re.search(r"[a-z]", password):
+        return False
+    if not re.search(r"[0-9]", password):
+        return False
+    if not re.search(r'[!@#$%^&*(),.?":{}|<>]+', password): # Corrected regex string
+        return False
+    return True
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -148,6 +162,9 @@ def update_password(current_user):
     user_id = data.get('user_id')
     new_password = data.get('new_password')
     
+    if not is_password_strong(new_password):
+        return jsonify({'error': 'Password must be at least 8 characters long and include uppercase, lowercase, numbers, and special characters.'}), 400
+
     user = User.query.get(user_id)
     if user:
         user.set_password(new_password)
