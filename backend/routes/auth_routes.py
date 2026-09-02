@@ -147,13 +147,17 @@ def update_password(current_user):
     data = request.get_json()
     user_id = data.get('user_id')
     new_password = data.get('new_password')
-    
+
+    # Basic password strength validation
+    if len(new_password) < 8 or not any(char.isdigit() for char in new_password) or not any(char.isupper() for char in new_password):
+        return jsonify({'error': 'Password must be at least 8 characters long and contain at least one digit and one uppercase letter'}), 400
+
     user = User.query.get(user_id)
     if user:
         user.set_password(new_password)
         db.session.commit()
         return jsonify({'message': 'Password updated'})
-    return jsonify({'error': 'User not found'}), 404 
+    return jsonify({'error': 'User not found'}), 404
 
 # ============================================================
 # VULNERABILITY: Insecure Password Reset
@@ -223,4 +227,4 @@ def import_profile(current_user):
             return jsonify({'message': 'Profile imported successfully'})
         return jsonify({'error': 'Invalid profile format'}), 400
     except Exception as e:
-        return jsonify({'error': str(e)}), 400 
+        return jsonify({'error': str(e)}), 400
