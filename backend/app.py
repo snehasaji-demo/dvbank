@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
 import sqlite3
+import re # Added for password validation
 
 app = Flask(__name__)
 
@@ -172,12 +173,22 @@ def init_db():
         users = {}
         for user_data in test_users:
             if not User.query.filter_by(username=user_data['username']).first():
+                password = user_data['password']
+                # Basic password validation for CWE-521
+                # Requires at least 8 characters, one uppercase, one lowercase, and one digit.
+                if len(password) < 8 or \
+                   not re.search(r'[A-Z]', password) or \
+                   not re.search(r'[a-z]', password) or \
+                   not re.search(r'[0-9]', password):
+                    print(f"Skipping user '{user_data['username']}' due to weak password.")
+                    continue # Skip to the next user
+
                 user = User(
                     username=user_data['username'],
                     email=user_data['email'],
                     balance=Decimal(str(user_data['balance']))
                 )
-                user.set_password(user_data['password'])
+                user.set_password(password)
                 user.set_profile(user_data['profile'])
                 db.session.add(user)
                 db.session.commit()
