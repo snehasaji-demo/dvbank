@@ -6,6 +6,20 @@ from auth import token_required
 import json
 import hashlib
 import yaml  # Add YAML support for profile imports
+import re # Added for password validation
+
+def is_password_strong(password):
+    if len(password) < 8:
+        return False
+    if not re.search(r"[A-Z]", password):
+        return False
+    if not re.search(r"[a-z]", password):
+        return False
+    if not re.search(r"[0-9]", password):
+        return False
+    if not re.search(r'[!@#$%^&*(),.?":{}|<>]', password): # Corrected regex string
+        return False
+    return True
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -148,6 +162,9 @@ def update_password(current_user):
     user_id = data.get('user_id')
     new_password = data.get('new_password')
     
+    if not is_password_strong(new_password):
+        return jsonify({'error': 'Password must be at least 8 characters long and include uppercase, lowercase, numbers, and special characters.'}), 400
+
     user = User.query.get(user_id)
     if user:
         user.set_password(new_password)
@@ -159,10 +176,8 @@ def update_password(current_user):
 # VULNERABILITY: Insecure Password Reset
 #   - Predictable reset token (CWE-330): token = md5(username), so an attacker
 #     can derive any user's token without ever triggering a reset email.
-#   - Host header injection / reset-link poisoning (CWE-644): the reset URL is
-#     built from the client-controlled Host header.
-#   - Broken authentication / account takeover (CWE-640): no expiry, no rate
-#     limiting, no proof of account ownership.
+#   - Host header injection / reset-link poisoning (CWE-644): the reset URL is\n#     built from the client-controlled Host header.
+#   - Broken authentication / account takeover (CWE-640): no expiry, no rate\n#     limiting, no proof of account ownership.
 # Semgrep rules: python.lang.security.audit.weak-token-generation
 # ============================================================
 @auth_bp.route('/api/forgot-password', methods=['POST'])
@@ -214,7 +229,7 @@ def reset_password():
 def import_profile(current_user):
     try:
         profile_yaml = request.get_json().get('profile_yaml', '')
-        # Vulnerable: directly loads YAML that could contain malicious code
+        # Vulnerable: directly loads YAML that_could contain malicious code
         profile_data = yaml.load(profile_yaml, Loader=yaml.Loader)
         
         if isinstance(profile_data, dict):
