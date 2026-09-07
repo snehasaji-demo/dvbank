@@ -208,6 +208,9 @@ def export_session(current_user):
 @admin_bp.route('/api/admin/users/<int:user_id>', methods=['PUT'])
 @token_required
 def update_user(current_user, user_id):
+    if current_user.role != 'admin':
+        return jsonify({'error': 'Access denied: Admins only'}), 403
+
     data = request.get_json()
     user = User.query.get(user_id)
 
