@@ -178,8 +178,8 @@ def forgot_password():
         db.session.commit()
 
     # Reset link built from the attacker-controllable Host header
-    host = request.headers.get('Host')
-    reset_link = f"http://{host}/reset-password?user={username}&token={token}"
+    # Fix: Use request.url_root to prevent Host header injection
+    reset_link = f"{request.url_root}reset-password?user={username}&token={token}"
 
     return jsonify({
         'message': 'If the account exists, a reset link has been sent',
