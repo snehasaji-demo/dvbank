@@ -215,7 +215,7 @@ def import_profile(current_user):
     try:
         profile_yaml = request.get_json().get('profile_yaml', '')
         # Vulnerable: directly loads YAML that could contain malicious code
-        profile_data = yaml.load(profile_yaml, Loader=yaml.Loader)
+        profile_data = yaml.safe_load(profile_yaml)
         
         if isinstance(profile_data, dict):
             current_user.set_profile(profile_data)
