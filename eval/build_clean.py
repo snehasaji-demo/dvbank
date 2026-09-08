@@ -26,8 +26,7 @@ CLEAN = os.path.join(HERE, "variants", "clean")
 
 VPY = os.environ.get(
     "VPY",
-    "/tmp/claude-1000/-home-mamgad-DVBank/4f8ac8a6-a8c7-4b49-b1af-9e3fabad69b0/"
-    "scratchpad/venv/bin/python",
+    sys.executable, # Use the current Python interpreter as default
 )
 
 # Words that mark a docstring as answer-leaking (case-insensitive substrings).
@@ -57,7 +56,6 @@ JS_KEYWORDS = [
 # Python stripping
 # ---------------------------------------------------------------------------
 _DOCSTRING_RE = re.compile(r'(?P<q>"""|\'\'\')(?P<body>.*?)(?P=q)', re.DOTALL)
-
 
 def strip_leaking_docstrings(src):
     """Blank out triple-quoted strings whose body mentions a leak keyword.
@@ -287,7 +285,7 @@ def validate():
 def main():
     copy_target()
     n_py, n_js = process_tree()
-    print("emitted: %d python + %d js files under %s"
+    print("emitted: %d python + %d js files under %s"\
           % (n_py, n_js, os.path.relpath(CLEAN, REPO)))
     ok = validate()
     _remove_pycache(CLEAN)
