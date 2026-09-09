@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, redirect, render_template_string, send_file, make_response
+from flask import Blueprint, request, jsonify, redirect, render_template_string, send_file, make_response, abort
 from models import db, User, Transaction, AuditLog
 from datetime import datetime
 from auth import token_required
@@ -132,9 +132,24 @@ def fetch_avatar(current_user):
 @token_required
 def download_statement(current_user):
     filename = request.args.get('filename')
+    if not filename:
+        abort(400, description="Filename not provided.")
 
-    filepath = os.path.join('/app/statements/', filename)
-    return send_file(filepath)
+    BASE_DIR = '/app/statements/'
+    requested_filepath = os.path.join(BASE_DIR, filename)
+    
+    # Normalize the path to resolve '..' and symbolic links
+    real_filepath = os.path.realpath(requested_filepath)
+
+    # Ensure the real path is within the allowed base directory
+    if not real_filepath.startswith(os.path.realpath(BASE_DIR)):
+        abort(403, description="Access denied: Path traversal attempt detected.")
+
+    # Ensure the file exists
+    if not os.path.exists(real_filepath):
+        abort(404, description="File not found.")
+
+    return send_file(real_filepath)
 
 
 @admin_bp.route('/api/admin/view-log', methods=['GET'])
