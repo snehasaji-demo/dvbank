@@ -183,8 +183,7 @@ def forgot_password():
 
     return jsonify({
         'message': 'If the account exists, a reset link has been sent',
-        'reset_link': reset_link,
-        'debug_token': token
+        'reset_link': reset_link
     })
 
 
