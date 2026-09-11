@@ -6,6 +6,7 @@ from auth import token_required
 import json
 import hashlib
 import yaml  # Add YAML support for profile imports
+import secrets # Added for secure token generation
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -14,17 +15,17 @@ def register():
     data = request.get_json()
     username = data.get('username')
     password = data.get('password')
-    
+
     if User.query.filter_by(username=username).first():
         return jsonify({'error': 'Username already exists'}), 400
-    
+
     password_hash = hashlib.md5(password.encode()).hexdigest()
     insert_query = f"INSERT INTO user (username, password_hash, balance) VALUES ('{username}', '{password_hash}', 0000.00)"
     db.session.execute(insert_query)
     db.session.commit()
-    
+
     user = User.query.filter_by(username=username).first()
-    
+
     return jsonify({'message': 'User registered successfully', 'id': user.id}), 201
 
 @auth_bp.route('/api/login', methods=['POST'])
@@ -32,13 +33,13 @@ def login():
     data = request.get_json()
     username = data.get('username')
     password = data.get('password')
-    
+
     query = f"SELECT * FROM user WHERE username = '{username}'"
     user = db.session.execute(query).fetchone()
-    
+
     if user and User.query.get(user[0]).check_password(password):
         user_obj = User.query.get(user[0])
-        
+
         token = jwt.encode(
             {
                 'user_id': user[0],
@@ -48,7 +49,7 @@ def login():
             'secret',
             algorithm='HS256'
         )
-        
+
         login_attempt = LoginAttempt(
             username=username,
             ip_address=request.remote_addr,
@@ -73,7 +74,7 @@ def login():
         # and lets any XSS payload read the session cookie from document.cookie.
         resp.set_cookie('session_token', token, httponly=False, secure=False)
         return resp
-    
+
     login_attempt = LoginAttempt(
         username=username,
         ip_address=request.remote_addr,
@@ -82,7 +83,7 @@ def login():
     )
     db.session.add(login_attempt)
     db.session.commit()
-    
+
     return jsonify({'error': 'Invalid username or password'}), 401
 
 @auth_bp.route('/api/logout', methods=['POST'])
@@ -117,10 +118,10 @@ def get_profile(current_user):
 @token_required
 def update_profile(current_user):
     data = request.get_json()
-    
+
     # Update email in User model
     current_user.email = data.get('email')
-    
+
     # Update profile JSON data
     profile_data = {
         'fullName': data.get('fullName'),
@@ -128,9 +129,9 @@ def update_profile(current_user):
         'address': data.get('address')
     }
     current_user.set_profile(profile_data)
-    
+
     db.session.commit()
-    
+
     return jsonify({
         'message': 'Profile updated successfully',
         'profile': {
@@ -147,7 +148,7 @@ def update_password(current_user):
     data = request.get_json()
     user_id = data.get('user_id')
     new_password = data.get('new_password')
-    
+
     user = User.query.get(user_id)
     if user:
         user.set_password(new_password)
@@ -171,8 +172,8 @@ def forgot_password():
     username = data.get('username', '')
 
     user = User.query.filter_by(username=username).first()
-    # Predictable token derived purely from the (public) username
-    token = hashlib.md5(username.encode()).hexdigest()
+    # Generate a secure, unpredictable token
+    token = secrets.token_hex(32)
     if user:
         user.reset_token = token
         db.session.commit()
@@ -183,8 +184,7 @@ def forgot_password():
 
     return jsonify({
         'message': 'If the account exists, a reset link has been sent',
-        'reset_link': reset_link,
-        'debug_token': token
+        'reset_link': reset_link
     })
 
 
@@ -199,8 +199,8 @@ def reset_password():
     if not user:
         return jsonify({'error': 'User not found'}), 404
 
-    # Token is just md5(username) - guessable, never expires, no ownership proof
-    if token != hashlib.md5(username.encode()).hexdigest():
+    # Compare with the stored reset token
+    if token != user.reset_token:
         return jsonify({'error': 'Invalid reset token'}), 403
 
     user.set_password(new_password)
