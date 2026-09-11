@@ -6,6 +6,7 @@ from auth import token_required
 import json
 import hashlib
 import yaml  # Add YAML support for profile imports
+import secrets # Added for secure token generation
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -171,8 +172,8 @@ def forgot_password():
     username = data.get('username', '')
 
     user = User.query.filter_by(username=username).first()
-    # Predictable token derived purely from the (public) username
-    token = hashlib.md5(username.encode()).hexdigest()
+    # Generate a secure, unpredictable token
+    token = secrets.token_hex(32)
     if user:
         user.reset_token = token
         db.session.commit()
@@ -183,8 +184,7 @@ def forgot_password():
 
     return jsonify({
         'message': 'If the account exists, a reset link has been sent',
-        'reset_link': reset_link,
-        'debug_token': token
+        'reset_link': reset_link
     })
 
 
@@ -199,8 +199,8 @@ def reset_password():
     if not user:
         return jsonify({'error': 'User not found'}), 404
 
-    # Token is just md5(username) - guessable, never expires, no ownership proof
-    if token != hashlib.md5(username.encode()).hexdigest():
+    # Compare with the stored reset token
+    if token != user.reset_token:
         return jsonify({'error': 'Invalid reset token'}), 403
 
     user.set_password(new_password)
