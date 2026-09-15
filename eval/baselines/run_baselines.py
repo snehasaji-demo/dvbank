@@ -41,7 +41,7 @@ def _semgrep_findings():
     if not tool:
         return None
     r = subprocess.run([tool, "--config", "p/python", "--json", TARGET],
-                       capture_output=True, text=True)
+                       capture_output=True, text=True, shell=False)
     try:
         data = json.loads(r.stdout)
     except Exception:
@@ -64,7 +64,7 @@ def _bandit_findings():
     if not tool:
         return None
     r = subprocess.run([tool, "-r", "-f", "json", TARGET],
-                       capture_output=True, text=True)
+                       capture_output=True, text=True, shell=False)
     try:
         data = json.loads(r.stdout)
     except Exception:
@@ -87,7 +87,7 @@ def _score(findings):
                         "--truth", os.path.join(EVAL, "ground_truth.json"),
                         "--findings", path,
                         "--decoys", os.path.join(EVAL, "decoys", "manifest.json")],
-                       capture_output=True, text=True)
+                       capture_output=True, text=True, shell=False)
     os.remove(path)
     try:
         return json.loads(r.stdout)
@@ -105,9 +105,9 @@ def main():
         rep = _score(findings)
         s = rep.get("summary", {})
         dc = rep.get("decoys", {})
-        print(f"[{name}] findings={len(findings)} "
-              f"precision={s.get('precision')} recall={s.get('recall')} "
-              f"f1={s.get('f1')} tp={s.get('true_positives')} "
+        print(f"[{name}] findings={len(findings)} "\
+              f"precision={s.get('precision')} recall={s.get('recall')} "\
+              f"f1={s.get('f1')} tp={s.get('true_positives')} "\
               f"decoy_fp={dc.get('decoy_fp_count')}")
     return 0
 
