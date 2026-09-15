@@ -453,9 +453,7 @@ def dashboard_data(current_user):
 
     response = make_response(jsonify({
         'users': users_count,
-        'transactions': transactions_count,
-        'api_key': ADMIN_API_KEY,
-        'aws_key': AWS_ACCESS_KEY
+        'transactions': transactions_count
     }))
 
     return response
