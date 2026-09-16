@@ -15,7 +15,7 @@ import sqlite3
 app = Flask(__name__)
 
 # Configuration
-app.config['SECRET_KEY'] = 'supersecret'
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'a_fallback_secret_key_for_dev')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///vulnerable_bank.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
