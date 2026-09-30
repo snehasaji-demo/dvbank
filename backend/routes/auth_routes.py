@@ -6,7 +6,7 @@ from auth import token_required
 import json
 import hashlib
 import yaml  # Add YAML support for profile imports
-from sqlalchemy import text # Added import for sqlalchemy.text
+from sqlalchemy import text # Added for parameterized queries
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -20,9 +20,9 @@ def register():
         return jsonify({'error': 'Username already exists'}), 400
     
     password_hash = hashlib.md5(password.encode()).hexdigest()
-    # Fix: Use parameterized query with sqlalchemy.text
-    insert_query = text("INSERT INTO user (username, password_hash, balance) VALUES (:username, :password_hash, 0000.00)")
-    db.session.execute(insert_query, {"username": username, "password_hash": password_hash})
+    # Fix: Use parameterized query to prevent SQL Injection
+    db.session.execute(text("INSERT INTO user (username, password_hash, balance) VALUES (:username, :password_hash, 0000.00)"),
+                       {"username": username, "password_hash": password_hash})
     db.session.commit()
     
     user = User.query.filter_by(username=username).first()
@@ -35,9 +35,9 @@ def login():
     username = data.get('username')
     password = data.get('password')
     
-    # Fix: Use parameterized query with sqlalchemy.text
-    query = text("SELECT * FROM user WHERE username = :username")
-    user = db.session.execute(query, {"username": username}).fetchone()
+    # Fix: Use parameterized query to prevent SQL Injection
+    user = db.session.execute(text("SELECT * FROM user WHERE username = :username"),
+                              {"username": username}).fetchone()
     
     if user and User.query.get(user[0]).check_password(password):
         user_obj = User.query.get(user[0])
@@ -121,8 +121,7 @@ def get_profile(current_user):
 def update_profile(current_user):
     data = request.get_json()
     
-    # Update email in User model
-    current_user.email = data.get('email')
+    # Update email in User model\n    current_user.email = data.get('email')
     
     # Update profile JSON data
     profile_data = {
@@ -160,14 +159,7 @@ def update_password(current_user):
 
 # ============================================================
 # VULNERABILITY: Insecure Password Reset
-#   - Predictable reset token (CWE-330): token = md5(username), so an attacker
-#     can derive any user's token without ever triggering a reset email.
-#   - Host header injection / reset-link poisoning (CWE-644): the reset URL is
-#     built from the client-controlled Host header.
-#   - Broken authentication / account takeover (CWE-640): no expiry, no rate
-#     limiting, no proof of account ownership.
-# Semgrep rules: python.lang.security.audit.weak-token-generation
-# ============================================================
+#   - Predictable reset token (CWE-330): token = md5(username), so an attacker\n#     can derive any user's token without ever triggering a reset email.\n#   - Host header injection / reset-link poisoning (CWE-644): the reset URL is\n#     built from the client-controlled Host header.\n#   - Broken authentication / account takeover (CWE-640): no expiry, no rate\n#     limiting, no proof of account ownership.\n# Semgrep rules: python.lang.security.audit.weak-token-generation\n# ============================================================
 @auth_bp.route('/api/forgot-password', methods=['POST'])
 def forgot_password():
     data = request.get_json()
