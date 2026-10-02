@@ -6,7 +6,7 @@ from auth import token_required
 import json
 import hashlib
 import yaml  # Add YAML support for profile imports
-from sqlalchemy import text # Added import for sqlalchemy.text
+from sqlalchemy import text # Added for parameterized queries
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -20,7 +20,7 @@ def register():
         return jsonify({'error': 'Username already exists'}), 400
     
     password_hash = hashlib.md5(password.encode()).hexdigest()
-    # Fix: Use parameterized query with sqlalchemy.text
+    # Fix: Use parameterized query to prevent SQL Injection
     insert_query = text("INSERT INTO user (username, password_hash, balance) VALUES (:username, :password_hash, 0000.00)")
     db.session.execute(insert_query, {"username": username, "password_hash": password_hash})
     db.session.commit()
@@ -35,7 +35,7 @@ def login():
     username = data.get('username')
     password = data.get('password')
     
-    # Fix: Use parameterized query with sqlalchemy.text
+    # Fix: Use parameterized query to prevent SQL Injection
     query = text("SELECT * FROM user WHERE username = :username")
     user = db.session.execute(query, {"username": username}).fetchone()
     
