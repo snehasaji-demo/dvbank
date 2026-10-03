@@ -36,8 +36,7 @@ def login():
     password = data.get('password')
     
     # Fix: Use parameterized query with sqlalchemy.text
-    query = text("SELECT * FROM user WHERE username = :username")
-    user = db.session.execute(query, {"username": username}).fetchone()
+    user = db.session.execute(text("SELECT * FROM user WHERE username = :username"), {"username": username}).fetchone()
     
     if user and User.query.get(user[0]).check_password(password):
         user_obj = User.query.get(user[0])
@@ -162,12 +161,7 @@ def update_password(current_user):
 # VULNERABILITY: Insecure Password Reset
 #   - Predictable reset token (CWE-330): token = md5(username), so an attacker
 #     can derive any user's token without ever triggering a reset email.
-#   - Host header injection / reset-link poisoning (CWE-644): the reset URL is
-#     built from the client-controlled Host header.
-#   - Broken authentication / account takeover (CWE-640): no expiry, no rate
-#     limiting, no proof of account ownership.
-# Semgrep rules: python.lang.security.audit.weak-token-generation
-# ============================================================
+#   - Host header injection / reset-link poisoning (CWE-644): the reset URL is\n#     built from the client-controlled Host header.\n#   - Broken authentication / account takeover (CWE-640): no expiry, no rate\n#     limiting, no proof of account ownership.\n# Semgrep rules: python.lang.security.audit.weak-token-generation\n# ============================================================
 @auth_bp.route('/api/forgot-password', methods=['POST'])
 def forgot_password():
     data = request.get_json()
