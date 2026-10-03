@@ -6,7 +6,7 @@ from auth import token_required
 import json
 import hashlib
 import yaml  # Add YAML support for profile imports
-from sqlalchemy import text # Added import for sqlalchemy.text
+from sqlalchemy import text # Added for parameterized queries
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -20,9 +20,9 @@ def register():
         return jsonify({'error': 'Username already exists'}), 400
     
     password_hash = hashlib.md5(password.encode()).hexdigest()
-    # Fix: Use parameterized query with sqlalchemy.text
-    insert_query = text("INSERT INTO user (username, password_hash, balance) VALUES (:username, :password_hash, 0000.00)")
-    db.session.execute(insert_query, {"username": username, "password_hash": password_hash})
+    # Fix: Use parameterized query to prevent SQL Injection
+    db.session.execute(text("INSERT INTO user (username, password_hash, balance) VALUES (:username, :password_hash, 0000.00)"),
+                       {"username": username, "password_hash": password_hash})
     db.session.commit()
     
     user = User.query.filter_by(username=username).first()
@@ -35,9 +35,9 @@ def login():
     username = data.get('username')
     password = data.get('password')
     
-    # Fix: Use parameterized query with sqlalchemy.text
-    query = text("SELECT * FROM user WHERE username = :username")
-    user = db.session.execute(query, {"username": username}).fetchone()
+    # Fix: Use parameterized query to prevent SQL Injection
+    user = db.session.execute(text("SELECT * FROM user WHERE username = :username"),
+                              {"username": username}).fetchone()
     
     if user and User.query.get(user[0]).check_password(password):
         user_obj = User.query.get(user[0])
@@ -71,8 +71,7 @@ def login():
         })
         # VULNERABILITY: CSRF (CWE-352) + insecure cookie (CWE-1004/CWE-614)
         # The JWT is mirrored into a cookie with NO SameSite, NO HttpOnly and
-        # NO Secure flag, and cookie-authenticated endpoints (see /api/quickpay)
-        # require no CSRF token. This makes cross-site request forgery possible
+        # NO Secure flag, and cookie-authenticated endpoints (see /api/quickpay)\n        # require no CSRF token. This makes cross-site request forgery possible
         # and lets any XSS payload read the session cookie from document.cookie.
         resp.set_cookie('session_token', token, httponly=False, secure=False)
         return resp
@@ -120,10 +119,8 @@ def get_profile(current_user):
 @token_required
 def update_profile(current_user):
     data = request.get_json()
-    
     # Update email in User model
     current_user.email = data.get('email')
-    
     # Update profile JSON data
     profile_data = {
         'fullName': data.get('fullName'),
@@ -131,9 +128,7 @@ def update_profile(current_user):
         'address': data.get('address')
     }
     current_user.set_profile(profile_data)
-    
     db.session.commit()
-    
     return jsonify({
         'message': 'Profile updated successfully',
         'profile': {
@@ -226,4 +221,4 @@ def import_profile(current_user):
             return jsonify({'message': 'Profile imported successfully'})
         return jsonify({'error': 'Invalid profile format'}), 400
     except Exception as e:
-        return jsonify({'error': str(e)}), 400 
+        return jsonify({'error': str(e)}), 400
