@@ -15,18 +15,18 @@ def register():
     data = request.get_json()
     username = data.get('username')
     password = data.get('password')
-    
+
     if User.query.filter_by(username=username).first():
         return jsonify({'error': 'Username already exists'}), 400
-    
+
     password_hash = hashlib.md5(password.encode()).hexdigest()
-    # Fix: Use parameterized query with sqlalchemy.text
-    insert_query = text("INSERT INTO user (username, password_hash, balance) VALUES (:username, :password_hash, 0000.00)")
-    db.session.execute(insert_query, {"username": username, "password_hash": password_hash})
+    # Fix: Use parameterized query to prevent SQL Injection
+    db.session.execute(text("INSERT INTO user (username, password_hash, balance) VALUES (:username, :password_hash, 0000.00)"),
+                       {"username": username, "password_hash": password_hash})
     db.session.commit()
-    
+
     user = User.query.filter_by(username=username).first()
-    
+
     return jsonify({'message': 'User registered successfully', 'id': user.id}), 201
 
 @auth_bp.route('/api/login', methods=['POST'])
@@ -34,14 +34,14 @@ def login():
     data = request.get_json()
     username = data.get('username')
     password = data.get('password')
-    
-    # Fix: Use parameterized query with sqlalchemy.text
-    query = text("SELECT * FROM user WHERE username = :username")
-    user = db.session.execute(query, {"username": username}).fetchone()
-    
+
+    # Fix: Use parameterized query to prevent SQL Injection
+    user = db.session.execute(text("SELECT * FROM user WHERE username = :username"),
+                              {"username": username}).fetchone()
+
     if user and User.query.get(user[0]).check_password(password):
         user_obj = User.query.get(user[0])
-        
+
         token = jwt.encode(
             {
                 'user_id': user[0],
@@ -51,7 +51,7 @@ def login():
             'secret',
             algorithm='HS256'
         )
-        
+
         login_attempt = LoginAttempt(
             username=username,
             ip_address=request.remote_addr,
@@ -76,7 +76,7 @@ def login():
         # and lets any XSS payload read the session cookie from document.cookie.
         resp.set_cookie('session_token', token, httponly=False, secure=False)
         return resp
-    
+
     login_attempt = LoginAttempt(
         username=username,
         ip_address=request.remote_addr,
@@ -85,7 +85,7 @@ def login():
     )
     db.session.add(login_attempt)
     db.session.commit()
-    
+
     return jsonify({'error': 'Invalid username or password'}), 401
 
 @auth_bp.route('/api/logout', methods=['POST'])
@@ -120,10 +120,10 @@ def get_profile(current_user):
 @token_required
 def update_profile(current_user):
     data = request.get_json()
-    
+
     # Update email in User model
     current_user.email = data.get('email')
-    
+
     # Update profile JSON data
     profile_data = {
         'fullName': data.get('fullName'),
@@ -131,9 +131,9 @@ def update_profile(current_user):
         'address': data.get('address')
     }
     current_user.set_profile(profile_data)
-    
+
     db.session.commit()
-    
+
     return jsonify({
         'message': 'Profile updated successfully',
         'profile': {
@@ -150,13 +150,13 @@ def update_password(current_user):
     data = request.get_json()
     user_id = data.get('user_id')
     new_password = data.get('new_password')
-    
+
     user = User.query.get(user_id)
     if user:
         user.set_password(new_password)
         db.session.commit()
         return jsonify({'message': 'Password updated'})
-    return jsonify({'error': 'User not found'}), 404 
+    return jsonify({'error': 'User not found'}), 404
 
 # ============================================================
 # VULNERABILITY: Insecure Password Reset
@@ -210,20 +210,3 @@ def reset_password():
     user.reset_token = None
     db.session.commit()
     return jsonify({'message': 'Password has been reset'})
-
-
-@auth_bp.route('/api/profile/import', methods=['POST'])
-@token_required
-def import_profile(current_user):
-    try:
-        profile_yaml = request.get_json().get('profile_yaml', '')
-        # Vulnerable: directly loads YAML that could contain malicious code
-        profile_data = yaml.load(profile_yaml, Loader=yaml.Loader)
-        
-        if isinstance(profile_data, dict):
-            current_user.set_profile(profile_data)
-            db.session.commit()
-            return jsonify({'message': 'Profile imported successfully'})
-        return jsonify({'error': 'Invalid profile format'}), 400
-    except Exception as e:
-        return jsonify({'error': str(e)}), 400 
