@@ -334,8 +334,10 @@ def calculate(current_user):
     expression = data.get('expression', '')
 
     try:
-        result = eval(expression)
-        return jsonify({'result': str(result)})
+        # Direct evaluation of user-provided expressions is a security risk (CWE-95).
+        # A safe mathematical expression parser should be used here instead.
+        # For now, returning an error to prevent code injection.
+        return jsonify({'error': 'Mathematical expression evaluation is currently disabled for security reasons. Please use a safe expression parser.'}), 400
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
