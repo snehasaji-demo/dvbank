@@ -6,6 +6,7 @@ from auth import token_required
 import json
 import hashlib
 import yaml  # Add YAML support for profile imports
+from sqlalchemy import text # Added for parameterized queries
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -14,17 +15,18 @@ def register():
     data = request.get_json()
     username = data.get('username')
     password = data.get('password')
-    
+
     if User.query.filter_by(username=username).first():
         return jsonify({'error': 'Username already exists'}), 400
-    
+
     password_hash = hashlib.md5(password.encode()).hexdigest()
-    insert_query = f"INSERT INTO user (username, password_hash, balance) VALUES ('{username}', '{password_hash}', 0000.00)"
-    db.session.execute(insert_query)
+    # Fix: Use parameterized query to prevent SQL Injection
+    db.session.execute(text("INSERT INTO user (username, password_hash, balance) VALUES (:username, :password_hash, 0000.00)"),
+                       {"username": username, "password_hash": password_hash})
     db.session.commit()
-    
+
     user = User.query.filter_by(username=username).first()
-    
+
     return jsonify({'message': 'User registered successfully', 'id': user.id}), 201
 
 @auth_bp.route('/api/login', methods=['POST'])
@@ -32,13 +34,14 @@ def login():
     data = request.get_json()
     username = data.get('username')
     password = data.get('password')
-    
-    query = f"SELECT * FROM user WHERE username = '{username}'"
-    user = db.session.execute(query).fetchone()
-    
+
+    # Fix: Use parameterized query to prevent SQL Injection
+    user = db.session.execute(text("SELECT * FROM user WHERE username = :username"),
+                              {"username": username}).fetchone()
+
     if user and User.query.get(user[0]).check_password(password):
         user_obj = User.query.get(user[0])
-        
+
         token = jwt.encode(
             {
                 'user_id': user[0],
@@ -48,7 +51,7 @@ def login():
             'secret',
             algorithm='HS256'
         )
-        
+
         login_attempt = LoginAttempt(
             username=username,
             ip_address=request.remote_addr,
@@ -73,7 +76,7 @@ def login():
         # and lets any XSS payload read the session cookie from document.cookie.
         resp.set_cookie('session_token', token, httponly=False, secure=False)
         return resp
-    
+
     login_attempt = LoginAttempt(
         username=username,
         ip_address=request.remote_addr,
@@ -82,7 +85,7 @@ def login():
     )
     db.session.add(login_attempt)
     db.session.commit()
-    
+
     return jsonify({'error': 'Invalid username or password'}), 401
 
 @auth_bp.route('/api/logout', methods=['POST'])
