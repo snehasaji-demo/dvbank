@@ -33,15 +33,13 @@ def login():
     username = data.get('username')
     password = data.get('password')
     
-    query = f"SELECT * FROM user WHERE username = '{username}'"
-    user = db.session.execute(query).fetchone()
+    user_obj = User.query.filter_by(username=username).first()
     
-    if user and User.query.get(user[0]).check_password(password):
-        user_obj = User.query.get(user[0])
+    if user_obj and user_obj.check_password(password):
         
         token = jwt.encode(
             {
-                'user_id': user[0],
+                'user_id': user_obj.id,
                 'username': username,
                 'exp': datetime.utcnow() + timedelta(days=1)
             },
