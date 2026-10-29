@@ -6,6 +6,7 @@ from auth import token_required
 import json
 import hashlib
 import yaml  # Add YAML support for profile imports
+from sqlalchemy import text
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -33,8 +34,8 @@ def login():
     username = data.get('username')
     password = data.get('password')
     
-    query = f"SELECT * FROM user WHERE username = '{username}'"
-    user = db.session.execute(query).fetchone()
+    query = text("SELECT * FROM user WHERE username = :username")
+    user = db.session.execute(query, {'username': username}).fetchone()
     
     if user and User.query.get(user[0]).check_password(password):
         user_obj = User.query.get(user[0])
