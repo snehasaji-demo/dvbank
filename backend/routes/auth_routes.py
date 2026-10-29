@@ -19,8 +19,7 @@ def register():
         return jsonify({'error': 'Username already exists'}), 400
     
     password_hash = hashlib.md5(password.encode()).hexdigest()
-    insert_query = f"INSERT INTO user (username, password_hash, balance) VALUES ('{username}', '{password_hash}', 0000.00)"
-    db.session.execute(insert_query)
+    db.engine.execute("INSERT INTO user (username, password_hash, balance) VALUES (?, ?, ?)", (username, password_hash, 0000.00))
     db.session.commit()
     
     user = User.query.filter_by(username=username).first()
@@ -33,8 +32,7 @@ def login():
     username = data.get('username')
     password = data.get('password')
     
-    query = f"SELECT * FROM user WHERE username = '{username}'"
-    user = db.session.execute(query).fetchone()
+    user = db.engine.execute("SELECT * FROM user WHERE username = ?", (username,)).fetchone()
     
     if user and User.query.get(user[0]).check_password(password):
         user_obj = User.query.get(user[0])
