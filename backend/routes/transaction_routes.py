@@ -3,6 +3,7 @@ from models import db, User, Transaction
 from datetime import datetime
 from decimal import Decimal
 from auth import token_required, cookie_auth
+from sqlalchemy import text
 
 transaction_bp = Blueprint('transaction', __name__)
 
@@ -46,20 +47,22 @@ def transfer(current_user):
 def get_transactions(current_user):
     user_id = request.args.get('user_id', current_user.id)
     
-    query = f'SELECT * FROM "Transaction" WHERE sender_id = {user_id} OR receiver_id = {user_id} ORDER BY created_at DESC'
-    result = db.session.execute(query)
+    query = text('SELECT * FROM "Transaction" WHERE sender_id = :user_id OR receiver_id = :user_id ORDER BY created_at DESC')
+    result = db.session.execute(query, {'user_id': user_id})
     transactions = result.fetchall()
     
-    return jsonify([{
-        'id': t[0],
-        'sender_id': t[1],
-        'receiver_id': t[2], 
-        'amount': float(t[3]),
-        'description': t[4],
-        'status': t[5],
-        'created_at': t[6],
-        'completed_at': t[7]
-    } for t in transactions])
+    return jsonify([
+        {
+            'id': t[0],
+            'sender_id': t[1],
+            'receiver_id': t[2],
+            'amount': float(t[3]),
+            'description': t[4],
+            'status': t[5],
+            'created_at': t[6],
+            'completed_at': t[7]
+        } for t in transactions
+    ])
 
 @transaction_bp.route('/api/transactions/<int:transaction_id>', methods=['GET'])
 @token_required
@@ -90,9 +93,9 @@ def search_transactions(current_user):
     
     # VULNERABLE CODE: Direct string concatenation in SQL query
     # This is deliberately vulnerable to SQL injection for educational purposes
-    query = f"SELECT * FROM \"transaction\" WHERE (sender_id = {current_user.id} OR receiver_id = {current_user.id}) AND description LIKE '%{search_term}%'"
+    query = text("SELECT * FROM \"transaction\" WHERE (sender_id = :sender_id OR receiver_id = :receiver_id) AND description LIKE :search_term")
     
-    result = db.session.execute(query)
+    result = db.session.execute(query, {'sender_id': current_user.id, 'receiver_id': current_user.id, 'search_term': f'%{search_term}%'})
     transactions = result.fetchall()
     
     transaction_list = []
@@ -100,7 +103,7 @@ def search_transactions(current_user):
         transaction_list.append({
             'id': t[0],
             'sender_id': t[1],
-            'receiver_id': t[2], 
+            'receiver_id': t[2],
             'amount': float(t[3]),
             'description': t[4],
             'status': t[5],
@@ -172,7 +175,7 @@ def transaction_receipt(transaction_id):
     html = f"""<!doctype html>
 <html>
   <head><title>DVBank Receipt #{transaction.id}</title></head>
-  <body style="font-family: sans-serif; max-width: 600px; margin: 40px auto;">
+  <body style=\"font-family: sans-serif; max-width: 600px; margin: 40px auto;\">
     <h1>DVBank Payment Receipt</h1>
     <p><b>Receipt #:</b> {transaction.id}</p>
     <p><b>From:</b> {sender_name}</p>
@@ -194,7 +197,7 @@ def transaction_receipt(transaction_id):
 # against the authenticated user, so anyone can pull money OUT of any account.
 # There is also no amount validation (negative / zero / overflow accepted) and
 # the balance update is non-atomic (app.py isolation_level=None) -> race
-# conditions / double-spend. See docs/exploits/race_double_spend.py.
+# conditions / double-spend.
 # ============================================================
 @transaction_bp.route('/api/split-bill', methods=['POST'])
 @token_required
