@@ -15,7 +15,14 @@ import sqlite3
 app = Flask(__name__)
 
 # Configuration
-app.config['SECRET_KEY'] = 'supersecret'
+secret_key = os.environ.get('SECRET_KEY')
+if not secret_key:
+    if app.debug: # Development environment
+        print("WARNING: SECRET_KEY environment variable not set. Using a default key for development. Set SECRET_KEY for production!")
+        secret_key = 'a_very_insecure_default_key_for_dev_only'
+    else: # Production environment
+        raise ValueError("SECRET_KEY environment variable not set. This is required in production!")
+app.config['SECRET_KEY'] = secret_key
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///vulnerable_bank.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
