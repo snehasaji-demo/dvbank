@@ -52,7 +52,7 @@ def upload_avatar(current_user):
 # ============================================================
 @upload_bp.route('/uploads/<path:filename>', methods=['GET'])
 def serve_upload(filename):
-    full_path = os.path.join(UPLOAD_DIR, filename)
+    full_path = os.path.join(UPLOAD_DIR, os.path.basename(filename))
     if not os.path.isfile(full_path):
         return jsonify({'error': 'Not found'}), 404
 
