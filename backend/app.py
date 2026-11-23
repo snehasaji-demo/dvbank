@@ -55,6 +55,7 @@ def after_request(response):
         response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
         response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
         response.headers.add('Access-Control-Allow-Credentials', 'true')
+    response.headers.add('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; upgrade-insecure-requests;")
     return response
 
 # Initialize extensions
@@ -229,4 +230,4 @@ def init_db():
 
 if __name__ == '__main__':
     init_db()
-    app.run(host='0.0.0.0', debug=True, port=5000) 
+    app.run(host='0.0.0.0', debug=True, port=5000)
