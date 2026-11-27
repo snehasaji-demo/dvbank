@@ -1,4 +1,6 @@
-FROM node:16-alpine
+FROM node:20-alpine
+
+RUN sed -i 's#http://#https://#g' /etc/apk/repositories && apk upgrade --no-cache
 
 WORKDIR /app
 
@@ -6,7 +8,7 @@ WORKDIR /app
 RUN addgroup node root
 
 # Copy package.json first
-COPY package.json ./
+COPY package.json ./ 
 
 # Install dependencies and create package-lock.json
 RUN npm install
@@ -22,4 +24,4 @@ USER node
 
 EXPOSE 3000
 
-CMD ["npm", "start"] 
+CMD ["npm", "start"]
